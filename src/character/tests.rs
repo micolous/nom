@@ -4,12 +4,12 @@ use crate::internal::{Err, IResult};
 
 #[test]
 fn one_of_test() {
-  fn f(i: &[u8]) -> IResult<&[u8], char> {
-    one_of("ab")(i)
+  fn f(i: &[u8]) -> IResult<&[u8], u8> {
+    one_of(&"ab"[..])(i)
   }
 
   let a = &b"abcd"[..];
-  assert_eq!(f(a), Ok((&b"bcd"[..], 'a')));
+  assert_eq!(f(a), Ok((&b"bcd"[..], b'a')));
 
   let b = &b"cde"[..];
   assert_eq!(f(b), Err(Err::Error(error_position!(b, ErrorKind::OneOf))));
@@ -24,15 +24,15 @@ fn one_of_test() {
 
 #[test]
 fn none_of_test() {
-  fn f(i: &[u8]) -> IResult<&[u8], char> {
-    none_of("ab")(i)
+  fn f(i: &[u8]) -> IResult<&[u8], u8> {
+    none_of(&b"ab"[..])(i)
   }
 
   let a = &b"abcd"[..];
   assert_eq!(f(a), Err(Err::Error(error_position!(a, ErrorKind::NoneOf))));
 
   let b = &b"cde"[..];
-  assert_eq!(f(b), Ok((&b"de"[..], 'c')));
+  assert_eq!(f(b), Ok((&b"de"[..], b'c')));
 }
 
 #[test]

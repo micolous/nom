@@ -73,7 +73,7 @@ fn escaping() {
   use crate::character::streaming::one_of;
 
   fn esc(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    escaped(alpha, '\\', one_of("\"n\\"))(i)
+    escaped(alpha, b'\\', one_of(b"\"n\\".as_slice()))(i)
   }
   assert_eq!(esc(&b"abcd;"[..]), Ok((&b";"[..], &b"abcd"[..])));
   assert_eq!(esc(&b"ab\\\"cd;"[..]), Ok((&b";"[..], &b"ab\\\"cd"[..])));
@@ -97,9 +97,27 @@ fn escaping() {
   );
 
   fn esc2(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    escaped(digit, '\\', one_of("\"n\\"))(i)
+    escaped(digit, b'\\', one_of(&b"\"n\\"[..]))(i)
   }
   assert_eq!(esc2(&b"12\\nnn34"[..]), Ok((&b"nn34"[..], &b"12\\n"[..])));
+
+  // Escapes containing invalid UTF-8 sequences
+  // https://github.com/rust-bakery/nom/issues/1679
+  fn esc3(i: &[u8]) -> IResult<&[u8], &[u8]> {
+    escaped(digit, 0xDB, one_of(&b"\xDB\xDC\xDD"[..]))(i)
+  }
+  assert_eq!(
+    esc3(&b"12\xDB\xDC34;"[..]),
+    Ok((b";".as_slice(), b"12\xDB\xDC34".as_slice()))
+  );
+  assert_eq!(
+    esc3(&b"12\xDC34;"[..]),
+    Ok((b"\xDC34;".as_slice(), b"12".as_slice()))
+  );
+  assert_eq!(
+    esc3(&b"12\xDB\xDC\xDC\xDC34"[..]),
+    Ok((b"\xDC\xDC34".as_slice(), b"12\xDB\xDC".as_slice()))
+  );
 }
 
 #[cfg(feature = "alloc")]

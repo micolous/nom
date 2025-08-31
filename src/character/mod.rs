@@ -154,11 +154,11 @@ where
 /// ```
 pub fn satisfy<F, I, Error: ParseError<I>>(
   predicate: F,
-) -> impl Parser<I, Output = char, Error = Error>
+) -> impl Parser<I, Output = <I as Input>::Item, Error = Error>
 where
   I: Input,
   <I as Input>::Item: AsChar,
-  F: Fn(char) -> bool,
+  F: Fn(<I as Input>::Item) -> bool,
 {
   Satisfy {
     predicate,
@@ -176,10 +176,10 @@ impl<I, Error: ParseError<I>, F, MakeError> Parser<I> for Satisfy<F, MakeError>
 where
   I: Input,
   <I as Input>::Item: AsChar,
-  F: Fn(char) -> bool,
+  F: Fn(<I as Input>::Item) -> bool,
   MakeError: Fn(I) -> Error,
 {
-  type Output = char;
+  type Output = <I as Input>::Item;
   type Error = Error;
 
   #[inline(always)]
@@ -188,9 +188,8 @@ where
     i: I,
   ) -> crate::PResult<OM, I, Self::Output, Self::Error> {
     match (i).iter_elements().next().map(|t| {
-      let c = t.as_char();
-      let b = (self.predicate)(c);
-      (c, b)
+      let b = (self.predicate)(t);
+      (t, b)
     }) {
       None => {
         if OM::Incomplete::is_streaming() {
@@ -200,7 +199,7 @@ where
         }
       }
       Some((_, false)) => Err(Err::Error(OM::Error::bind(|| (self.make_error)(i)))),
-      Some((c, true)) => Ok((i.take_from(c.len()), OM::Output::bind(|| c.as_char()))),
+      Some((c, true)) => Ok((i.take_from(c.len()), OM::Output::bind(|| c))),
     }
   }
 }
@@ -216,14 +215,16 @@ where
 /// assert_eq!(one_of::<_, _, (&str, ErrorKind)>("a")("bc"), Err(Err::Error(("bc", ErrorKind::OneOf))));
 /// assert_eq!(one_of::<_, _, (&str, ErrorKind)>("a")(""), Err(Err::Error(("", ErrorKind::OneOf))));
 /// ```
-pub fn one_of<I, T, Error: ParseError<I>>(list: T) -> impl Parser<I, Output = char, Error = Error>
+pub fn one_of<I, T, Error: ParseError<I>>(
+  list: T,
+) -> impl Parser<I, Output = <I as Input>::Item, Error = Error>
 where
   I: Input,
   <I as Input>::Item: AsChar,
-  T: FindToken<char>,
+  T: FindToken<<I as Input>::Item>,
 {
   Satisfy {
-    predicate: move |c: char| list.find_token(c),
+    predicate: move |c| list.find_token(c),
     make_error: move |i| Error::from_error_kind(i, ErrorKind::OneOf),
   }
 }
@@ -239,14 +240,16 @@ where
 /// assert_eq!(none_of::<_, _, (_, ErrorKind)>("ab")("a"), Err(Err::Error(("a", ErrorKind::NoneOf))));
 /// assert_eq!(none_of::<_, _, (_, ErrorKind)>("a")(""), Err(Err::Incomplete(Needed::Unknown)));
 /// ```
-pub fn none_of<I, T, Error: ParseError<I>>(list: T) -> impl Parser<I, Output = char, Error = Error>
+pub fn none_of<I, T, Error: ParseError<I>>(
+  list: T,
+) -> impl Parser<I, Output = <I as Input>::Item, Error = Error>
 where
   I: Input,
   <I as Input>::Item: AsChar,
-  T: FindToken<char>,
+  T: FindToken<<I as Input>::Item>,
 {
   Satisfy {
-    predicate: move |c: char| !list.find_token(c),
+    predicate: move |c| !list.find_token(c),
     make_error: move |i| Error::from_error_kind(i, ErrorKind::NoneOf),
   }
 }

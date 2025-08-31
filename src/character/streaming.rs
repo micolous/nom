@@ -53,11 +53,13 @@ where
 /// assert_eq!(parser("cd"), Err(Err::Error(Error::new("cd", ErrorKind::Satisfy))));
 /// assert_eq!(parser(""), Err(Err::Incomplete(Needed::Unknown)));
 /// ```
-pub fn satisfy<F, I, Error: ParseError<I>>(cond: F) -> impl FnMut(I) -> IResult<I, char, Error>
+pub fn satisfy<F, I, Error: ParseError<I>>(
+  cond: F,
+) -> impl FnMut(I) -> IResult<I, <I as Input>::Item, Error>
 where
   I: Input,
   <I as Input>::Item: AsChar,
-  F: Fn(char) -> bool,
+  F: Fn(<I as Input>::Item) -> bool,
 {
   let mut parser = super::satisfy(cond);
   move |i: I| parser.process::<OutputM<Emit, Emit, Streaming>>(i)
@@ -75,11 +77,13 @@ where
 /// assert_eq!(one_of::<_, _, (_, ErrorKind)>("a")("bc"), Err(Err::Error(("bc", ErrorKind::OneOf))));
 /// assert_eq!(one_of::<_, _, (_, ErrorKind)>("a")(""), Err(Err::Incomplete(Needed::Unknown)));
 /// ```
-pub fn one_of<I, T, Error: ParseError<I>>(list: T) -> impl FnMut(I) -> IResult<I, char, Error>
+pub fn one_of<I, T, Error: ParseError<I>>(
+  list: T,
+) -> impl FnMut(I) -> IResult<I, <I as Input>::Item, Error>
 where
   I: Input,
   <I as Input>::Item: AsChar,
-  T: FindToken<char>,
+  T: FindToken<<I as Input>::Item>,
 {
   let mut parser = super::one_of(list);
   move |i: I| parser.process::<OutputM<Emit, Emit, Streaming>>(i)
@@ -97,11 +101,13 @@ where
 /// assert_eq!(none_of::<_, _, (_, ErrorKind)>("ab")("a"), Err(Err::Error(("a", ErrorKind::NoneOf))));
 /// assert_eq!(none_of::<_, _, (_, ErrorKind)>("a")(""), Err(Err::Incomplete(Needed::Unknown)));
 /// ```
-pub fn none_of<I, T, Error: ParseError<I>>(list: T) -> impl FnMut(I) -> IResult<I, char, Error>
+pub fn none_of<I, T, Error: ParseError<I>>(
+  list: T,
+) -> impl FnMut(I) -> IResult<I, <I as Input>::Item, Error>
 where
   I: Input,
   <I as Input>::Item: AsChar,
-  T: FindToken<char>,
+  T: FindToken<<I as Input>::Item>,
 {
   let mut parser = super::none_of(list);
   move |i: I| parser.process::<OutputM<Emit, Emit, Streaming>>(i)
