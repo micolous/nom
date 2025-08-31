@@ -147,17 +147,17 @@ fn to_s(i: Vec<u8>) -> String {
 #[cfg(feature = "alloc")]
 #[test]
 fn escape_transform() {
-  use crate::Parser;
+  use crate::{bytes::complete::is_not, Parser};
 
   fn esc(i: &[u8]) -> IResult<&[u8], String> {
     map(
       escaped_transform(
         alpha,
-        '\\',
+        b'\\',
         alt((
-          value(&b"\\"[..], tag("\\")),
-          value(&b"\""[..], tag("\"")),
-          value(&b"\n"[..], tag("n")),
+          value(b"\\".as_slice(), tag(b"\\".as_slice())),
+          value(b"\"".as_slice(), tag(b"\"".as_slice())),
+          value(b"\n".as_slice(), tag(b"n".as_slice())),
         )),
       ),
       to_s,
@@ -199,10 +199,10 @@ fn escape_transform() {
     map(
       escaped_transform(
         alpha,
-        '&',
+        b'&',
         alt((
-          value("è".as_bytes(), tag("egrave;")),
-          value("à".as_bytes(), tag("agrave;")),
+          value("è".as_bytes(), tag(b"egrave;".as_slice())),
+          value("à".as_bytes(), tag(b"agrave;".as_slice())),
         )),
       ),
       to_s,
@@ -216,6 +216,40 @@ fn escape_transform() {
   assert_eq!(
     esc2(&b"ab&egrave;D&agrave;EF;"[..]),
     Ok((&b";"[..], String::from("abèDàEF")))
+  );
+
+  const FEND: u8 = 0xC0;
+  const FESC: u8 = 0xDB;
+  const TFEND: u8 = 0xDC;
+  const TFESC: u8 = 0xDD;
+
+  // Escapes containing invalid UTF-8 sequences
+  // https://github.com/rust-bakery/nom/issues/1679
+  fn esc3(i: &[u8]) -> IResult<&[u8], Vec<u8>> {
+    escaped_transform(
+      is_not([FESC].as_slice()),
+      FESC,
+      alt((
+        value(&[FEND][..], tag(&[TFEND][..])),
+        value(&[FESC][..], tag(&[TFESC][..])),
+      )),
+    )(i)
+  }
+
+  assert_eq!(
+    esc3(&[0x61, 0x62, FESC, TFEND, 0x63, 0x64, 0x65]),
+    Ok((&[][..], vec![0x61, 0x62, FEND, 0x63, 0x64, 0x65])),
+  );
+  assert_eq!(
+    esc3(&[0x61, 0x62, 0x63]),
+    Ok((&[][..], vec![0x61, 0x62, 0x63])),
+  );
+  assert_eq!(
+    esc3(&[0x61, FESC, 0x00, TFEND, 0x63, 0x64]),
+    Err(Err::Error(error_position!(
+      &[0x00, TFEND, 0x63, 0x64][..],
+      ErrorKind::Tag
+    ))),
   );
 }
 
