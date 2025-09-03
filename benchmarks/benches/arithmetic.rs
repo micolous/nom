@@ -40,7 +40,7 @@ fn term(input: &[u8]) -> IResult<&[u8], i64> {
     pair(one_of("*/"), factor),
     move || init,
     |acc, (op, val)| {
-      if op == b'*' {
+      if op == '*' {
         acc * val
       } else {
         acc / val
@@ -57,7 +57,7 @@ fn expr(input: &[u8]) -> IResult<&[u8], i64> {
     pair(one_of("+-"), term),
     move || init,
     |acc, (op, val)| {
-      if op == b'+' {
+      if op == '+' {
         acc + val
       } else {
         acc - val
